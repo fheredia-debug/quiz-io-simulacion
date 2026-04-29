@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulación · Quiz IO · UTN FRBA</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0d12;--surface:#13161f;--surface2:#1a1e2a;--border:#252a38;--border2:#2e3448;
+  --accent:#5b6ef5;--accent2:#38d9a9;--gold:#f5c842;--silver:#a8b4c8;--bronze:#c87d42;
+  --warn:#f06292;--text:#e8ecf4;--muted:#6b7590;
+  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;display:flex;flex-direction:column;align-items:center}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(91,110,245,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(91,110,245,.035) 1px,transparent 1px);background-size:44px 44px;pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1;width:100%;max-width:660px;padding:2rem 1.25rem 5rem}
+
+/* header */
+.site-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;padding-bottom:1rem;border-bottom:1px solid var(--border)}
+.brand{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+.brand span{color:var(--accent)}
+.q-counter{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.q-counter b{color:var(--text);font-weight:500}
+
+/* progress */
+.progress-track{height:2px;background:var(--border);border-radius:2px;margin-bottom:2rem;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px;transition:width .4s cubic-bezier(.4,0,.2,1)}
+
+/* screens */
+.screen{display:none}.screen.active{display:block}
+
+/* intro */
+.intro-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2.5rem 2rem;text-align:center}
+.intro-tag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);border:1px solid rgba(91,110,245,.35);background:rgba(91,110,245,.08);padding:4px 14px;border-radius:20px;margin-bottom:1.25rem}
+.intro-title{font-size:26px;font-weight:600;line-height:1.25;margin-bottom:6px}
+.intro-sub{font-size:14px;color:var(--muted);margin-bottom:1.75rem;line-height:1.6}
+.intro-stats{display:flex;justify-content:center;gap:2rem;margin-bottom:1.75rem;padding:1.25rem;background:var(--surface2);border-radius:10px}
+.istat .num{font-family:var(--mono);font-size:22px;font-weight:600;color:var(--accent2)}
+.istat .lbl{font-size:11px;color:var(--muted);margin-top:2px}
+.name-field{width:100%;padding:14px 18px;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-family:var(--sans);font-size:16px;outline:none;margin-bottom:1rem;transition:border-color .2s}
+.name-field::placeholder{color:var(--muted)}
+.name-field:focus{border-color:var(--accent)}
+.btn-start{width:100%;padding:14px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-family:var(--sans);font-size:16px;font-weight:500;cursor:pointer;transition:background .15s,transform .1s}
+.btn-start:hover{background:#4a5ce0}
+.btn-start:active{transform:scale(.98)}
+.btn-start:disabled{background:var(--border2);color:var(--muted);cursor:default}
+
+/* quiz */
+.badge{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:3px 11px;border-radius:20px;margin-bottom:14px}
+.badge-pdf{background:rgba(91,110,245,.12);color:var(--accent);border:1px solid rgba(91,110,245,.28)}
+.badge-hard{background:rgba(240,98,146,.1);color:var(--warn);border:1px solid rgba(240,98,146,.28)}
+.q-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.75rem;margin-bottom:1.25rem}
+.q-text{font-size:16px;line-height:1.65;color:var(--text);margin-bottom:1.5rem}
+.options{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:480px){.options{grid-template-columns:1fr}}
+.opt{padding:13px 15px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);cursor:pointer;font-family:var(--sans);font-size:13.5px;color:var(--text);text-align:left;line-height:1.45;transition:border-color .15s,background .15s,transform .1s}
+.opt:hover:not(:disabled){border-color:var(--accent);background:rgba(91,110,245,.07)}
+.opt:active:not(:disabled){transform:scale(.98)}
+.opt-key{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--muted);margin-right:8px}
+.opt.correct{background:rgba(56,217,169,.1);border-color:var(--accent2);color:var(--accent2)}
+.opt.wrong{background:rgba(240,98,146,.1);border-color:var(--warn);color:var(--warn)}
+.opt:disabled{cursor:default}
+.explanation{margin-top:1.25rem;padding:13px 16px;border-left:3px solid var(--accent);background:rgba(91,110,245,.05);border-radius:0 8px 8px 0;font-size:13px;color:var(--muted);line-height:1.65;display:none}
+.explanation.show{display:block}
+.explanation strong{color:var(--text);font-weight:500}
+.nav{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.nav-score{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.nav-score b{color:var(--accent2)}
+.btn{padding:10px 20px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text);font-family:var(--sans);font-size:13.5px;cursor:pointer;transition:background .15s,border-color .15s}
+.btn:hover{background:var(--surface2);border-color:var(--muted)}
+.btn:disabled{opacity:.28;cursor:default}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:500}
+.btn-primary:hover{background:#4a5ce0;border-color:#4a5ce0}
+
+/* result */
+.result-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem 1.75rem;margin-bottom:1.25rem;text-align:center}
+.result-name{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+.result-pct{font-family:var(--mono);font-size:60px;font-weight:600;line-height:1}
+.result-msg{font-size:15px;color:var(--muted);margin-top:10px}
+.result-breakdown{display:flex;gap:1rem;justify-content:center;margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--border)}
+.rb-item .rb-num{font-family:var(--mono);font-size:26px;font-weight:600}
+.rb-item .rb-lbl{font-size:11px;color:var(--muted);margin-top:2px}
+
+/* leaderboard */
+.lb-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.75rem;margin-bottom:1.25rem}
+.lb-title{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:1.5rem}
+
+/* podium */
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:10px;margin-bottom:1.75rem;padding-bottom:1.75rem;border-bottom:1px solid var(--border)}
+.pod-slot{display:flex;flex-direction:column;align-items:center;flex:1;max-width:180px}
+.pod-avatar{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:600;font-size:15px;margin-bottom:8px;border:2px solid transparent}
+.pod-avatar.gold{background:rgba(245,200,66,.15);color:var(--gold);border-color:var(--gold)}
+.pod-avatar.silver{background:rgba(168,180,200,.12);color:var(--silver);border-color:var(--silver)}
+.pod-avatar.bronze{background:rgba(200,125,66,.12);color:var(--bronze);border-color:var(--bronze)}
+.pod-name{font-size:12px;font-weight:500;text-align:center;margin-bottom:3px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%}
+.pod-score{font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:8px}
+.pod-column{width:100%;border-radius:6px 6px 0 0;display:flex;align-items:center;justify-content:center;border-bottom:none}
+.pod-column.gold{background:rgba(245,200,66,.1);border:1px solid rgba(245,200,66,.22);border-bottom:none;height:88px}
+.pod-column.silver{background:rgba(168,180,200,.07);border:1px solid rgba(168,180,200,.18);border-bottom:none;height:60px}
+.pod-column.bronze{background:rgba(200,125,66,.07);border:1px solid rgba(200,125,66,.18);border-bottom:none;height:40px}
+.pod-rank{font-family:var(--mono);font-size:18px;font-weight:600}
+.pod-rank.gold{color:var(--gold)}.pod-rank.silver{color:var(--silver)}.pod-rank.bronze{color:var(--bronze)}
+
+/* table */
+.lb-table{width:100%;border-collapse:collapse}
+.lb-table th{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;padding:0 10px 10px;border-bottom:1px solid var(--border)}
+.lb-table th:last-child{text-align:right}
+.lb-table td{padding:10px;font-size:13.5px;border-bottom:1px solid var(--border);color:var(--text)}
+.lb-table td:last-child{text-align:right;font-family:var(--mono)}
+.lb-table tr:last-child td{border-bottom:none}
+.lb-table tr.me td{color:var(--accent2)}
+.me-tag{font-size:10px;color:var(--muted);margin-left:6px}
+.rank-badge{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-family:var(--mono);font-size:11px;font-weight:600}
+.r1{background:rgba(245,200,66,.15);color:var(--gold)}
+.r2{background:rgba(168,180,200,.12);color:var(--silver)}
+.r3{background:rgba(200,125,66,.12);color:var(--bronze)}
+.rn{color:var(--muted)}
+.lb-empty{text-align:center;padding:2rem;color:var(--muted);font-size:14px}
+.lb-loading{text-align:center;padding:2rem;color:var(--muted);font-family:var(--mono);font-size:13px}
+.bottom-nav{display:flex;gap:10px;margin-top:1rem}
+.bottom-nav .btn{flex:1}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.anim{animation:fadeUp .3s ease both}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="site-header">
+    <div class="brand">IO · <span>Simulación</span> · UTN FRBA</div>
+    <div class="q-counter" id="counter">inicio</div>
+  </div>
+  <div class="progress-track"><div class="progress-fill" id="progress" style="width:0%"></div></div>
+
+  <!-- INTRO -->
+  <div class="screen active" id="screen-intro">
+    <div class="intro-card anim">
+      <div class="intro-tag">Quiz interactivo</div>
+      <div class="intro-title">Simulación &amp;<br>Métodos de Sampleo</div>
+      <div class="intro-sub">I4051 · Investigación Operativa · UTN FRBA</div>
+      <div class="intro-stats">
+        <div class="istat"><div class="num">10</div><div class="lbl">preguntas</div></div>
+        <div class="istat"><div class="num">7</div><div class="lbl">del material</div></div>
+        <div class="istat"><div class="num">3</div><div class="lbl">alta dificultad</div></div>
+      </div>
+      <input class="name-field" id="name-input" type="text" placeholder="Tu nombre completo..." maxlength="40" autocomplete="off"/>
+      <button class="btn-start" id="btn-start" disabled onclick="startQuiz()">Empezar →</button>
+    </div>
+  </div>
+
+  <!-- QUIZ -->
+  <div class="screen" id="screen-quiz">
+    <div id="quiz-area"></div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="screen" id="screen-result">
+    <div id="result-area"></div>
+  </div>
+</div>
+
+<script>
+/* ── STORAGE ── */
+const SK = 'io_sim_scores_v3';
+
+async function saveScore(name, correct, total) {
+  const entry = { name, correct, total, pct: Math.round(correct/total*100), ts: Date.now() };
+  // Try claude.ai shared storage
+  try {
+    if (window.storage) {
+      let scores = [];
+      try { const r = await window.storage.get(SK, true); if(r) scores = JSON.parse(r.value); } catch(e){}
+      const idx = scores.findIndex(s => s.name.toLowerCase()===name.toLowerCase());
+      if(idx>=0){ if(entry.pct>=scores[idx].pct) scores[idx]=entry; } else scores.push(entry);
+      await window.storage.set(SK, JSON.stringify(scores), true);
+      return;
+    }
+  } catch(e){}
+  // Fallback: localStorage (for GitHub Pages)
+  try {
+    let scores = [];
+    try { scores = JSON.parse(localStorage.getItem(SK)||'[]'); } catch(e){}
+    const idx = scores.findIndex(s => s.name.toLowerCase()===name.toLowerCase());
+    if(idx>=0){ if(entry.pct>=scores[idx].pct) scores[idx]=entry; } else scores.push(entry);
+    localStorage.setItem(SK, JSON.stringify(scores));
+  } catch(e){}
+}
+
+async function loadScores() {
+  try {
+    if(window.storage){
+      try { const r = await window.storage.get(SK, true); if(r) return JSON.parse(r.value); } catch(e){}
+    }
+  } catch(e){}
+  try { return JSON.parse(localStorage.getItem(SK)||'[]'); } catch(e){ return []; }
+}
+
+/* ── QUESTIONS ── */
+const Qs = [
+  {
+    text:"Un modelo de simulación ejecuta 10 caminos y produce 10 resultados distintos. Un compañero propone quedarse con el camino 5 porque \"salió en el medio\". ¿Por qué esto es incorrecto?",
+    options:["Porque el camino 5 puede tener sesgo sistemático al ejecutarse en orden","Porque un único camino es una realización aleatoria con alta varianza; la esperanza requiere el promedio sobre todos los caminos","Porque hay que usar siempre el camino con mayor número de pasos","Porque en simulación solo son válidos los resultados de la última iteración"],
+    answer:1, badge:"pdf",
+    exp:"<strong>Concepto clave:</strong> cada camino es una historia posible del sistema. El valor de un solo camino tiene alta varianza. La esperanza se calcula como el promedio transversal a todos los caminos en cada instante t."
+  },
+  {
+    text:"¿Cuál es la diferencia conceptual entre 'espacio de estados' y 'espacio muestral' en un proceso estocástico?",
+    options:["Son lo mismo: ambos describen todos los resultados posibles de un experimento","El espacio muestral describe resultados de un experimento puntual; el espacio de estados describe todas las configuraciones que puede adoptar un sistema en su evolución","El espacio de estados solo aplica a sistemas continuos, el espacio muestral solo a discretos","El espacio muestral incluye probabilidades, el espacio de estados no"],
+    answer:1, badge:"pdf",
+    exp:"<strong>Del material:</strong> el espacio muestral es el set de resultados de un experimento. El espacio de estados es el set de todos los estados posibles del sistema. El estado describe completamente el sistema en un momento dado."
+  },
+  {
+    text:"Antes de aplicar MLE para ajustar una exponencial a datos reales, ¿cuál es el supuesto crítico que debe verificarse?",
+    options:["Que la media sea mayor que la varianza de la muestra","Que las muestras sean aleatorias e independientes y que se conozca de antemano la familia distribucional","Que la distribución exponencial tenga soporte en todos los reales","Que el parámetro λ estimado sea mayor que 1"],
+    answer:1, badge:"pdf",
+    exp:"<strong>Del material de MLE:</strong> los supuestos son muestras aleatorias + conocimiento previo de la distribución. Sin saber que la familia es exponencial, maximizar ese likelihood no tiene sentido."
+  },
+  {
+    text:"La transformada inversa tiene una desventaja que limita su uso. ¿Cuál es y qué método alternativo existe?",
+    options:["Es lenta computacionalmente; la alternativa es usar tablas precalculadas","Requiere la inversa analítica de la acumulada, que no siempre existe; la alternativa es el método de aceptación y rechazo (Rejection Sampling)","Solo funciona con distribuciones discretas; la alternativa es Monte Carlo puro","Produce números correlacionados; la alternativa es el método de composición"],
+    answer:1, badge:"pdf",
+    exp:"<strong>Del material:</strong> la desventaja es necesitar la solución analítica de la acumulada, que no siempre existe. El Rejection Sampling sirve para distribuciones complejas donde la inversa no es tratable analíticamente."
+  },
+  {
+    text:"Al aumentar los caminos en Monte Carlo, el histograma se estabiliza. ¿Qué fenómeno explica esto y cuál es su límite práctico?",
+    options:["Reducción del error de redondeo; el límite es la precisión de punto flotante","Convergencia de la distribución empírica a la teórica (Ley de Grandes Números); el límite es el costo computacional de ejecutar N caminos","Caminos repetidos producen resultados idénticos; el límite es la repetición del generador pseudoaleatorio","Normalización automática del histograma; con más de 10.000 caminos los resultados dejan de cambiar exactamente"],
+    answer:1, badge:"pdf",
+    exp:"<strong>Del material:</strong> al recoger mayor cantidad de datos nos acercamos a la distribución teórica (convergencia). El límite es puramente computacional: más caminos = más tiempo de cómputo."
+  },
+  {
+    text:"Un proceso tiene la propiedad de que su estado futuro depende únicamente del presente, no de la historia pasada. ¿Cómo se clasifica y cuál es un ejemplo dado en la cátedra?",
+    options:["Proceso con memoria; ejemplo: un LLM como ChatGPT","Proceso sin memoria (Markoviano); ejemplo: cantidad de personas en una fila en ventana de tiempo estable","Proceso estacionario; ejemplo: cotización del dólar MEP","Proceso determinístico; ejemplo: el cronómetro de simulación"],
+    answer:1, badge:"pdf",
+    exp:"<strong>Del material:</strong> los procesos sin memoria son Markovianos: el futuro depende solo del presente. ChatGPT es el ejemplo opuesto: proceso con memoria (depende del historial completo de tokens)."
+  },
+  {
+    text:"Para ajustar una distribución Beta con MLE, el material indica que no hay solución analítica. ¿Qué implica esto operativamente?",
+    options:["Que la distribución Beta no puede usarse en simulación","Que la función de likelihood no puede construirse para la Beta","Que deben usarse métodos numéricos de optimización, ya que igualar la derivada a cero no produce expresión cerrada","Que la Beta siempre puede aproximarse con una Normal si hay suficientes datos"],
+    answer:2, badge:"pdf",
+    exp:"<strong>Del material:</strong> no todas las distribuciones tienen MLE analítico. Para la Beta se usan métodos numéricos. Lo importante es saber construir la función de densidad para plantear el likelihood."
+  },
+  {
+    text:"Un modelo simula fallas de servidor con estados 'Normal' y 'Falla'. La probabilidad de transición depende de los últimos 3 pasos. ¿Puede modelarse como cadena de Markov de primer orden?",
+    options:["Sí, porque cualquier proceso con estados discretos es una cadena de Markov","No: depende de 3 estados anteriores, violando la propiedad Markoviana de primer orden. Podría reformularse expandiendo el espacio de estados","Sí, porque la propiedad Markoviana solo aplica al estado de destino","No, porque las cadenas de Markov solo modelan sistemas con exactamente dos estados"],
+    answer:1, badge:"hard",
+    exp:"<strong>Razonamiento:</strong> Markov de primer orden exige P(futuro|historia) = P(futuro|presente). Si la transición depende de 3 estados previos, hay memoria → no es Markoviano. Solución: ampliar el estado para incluir los últimos 3 valores."
+  },
+  {
+    text:"Dos simulaciones del mismo sistema: una usa transformada inversa con exponencial, la otra usa Rejection Sampling sobre esa misma exponencial. Ambas generan 100.000 caminos. ¿Cuál preferirías y por qué?",
+    options:["Rejection Sampling, porque es más general y siempre da resultados más precisos","La transformada inversa, porque para la exponencial existe solución analítica cerrada: es más eficiente y no hay muestras rechazadas","Son equivalentes en precisión, eficiencia y costo computacional","Rejection Sampling, porque la transformada inversa solo funciona con distribuciones uniformes"],
+    answer:1, badge:"hard",
+    exp:"<strong>Razonamiento:</strong> Rejection Sampling descarta muestras que no pasan el criterio de aceptación → menos eficiente. La transformada inversa produce un sample por número aleatorio sin rechazos. Con exponencial, donde existe inversa analítica, es siempre preferible."
+  },
+  {
+    text:"En un pipeline real: datos de campo → ajuste MLE → sampleo → simulación. ¿Cuál es el eslabón más crítico para la calidad del modelo?",
+    options:["El generador pseudoaleatorio, ya que determina todos los samples","La cantidad de caminos: más caminos eliminan cualquier error de ajuste","El ajuste paramétrico: si la familia distribucional es incorrecta o los datos son pocos, se simula una realidad que no existe","El error numérico de punto flotante al evaluar logaritmos en MLE"],
+    answer:2, badge:"hard",
+    exp:"<strong>Razonamiento:</strong> hay dos fuentes encadenadas: error en ajuste MLE + varianza Monte Carlo. Si la distribución ajustada es incorrecta, aumentar caminos solo converge más rápido a la distribución equivocada. El ajuste paramétrico es el eslabón más crítico."
+  }
+];
+
+/* ── STATE ── */
+let playerName='', current=0;
+let userAnswers=new Array(Qs.length).fill(null);
+
+/* ── INTRO ── */
+const nameInput=document.getElementById('name-input');
+const btnStart=document.getElementById('btn-start');
+nameInput.addEventListener('input',()=>{ btnStart.disabled=nameInput.value.trim().length<2; });
+nameInput.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!btnStart.disabled) startQuiz(); });
+
+function startQuiz(){
+  playerName=nameInput.value.trim();
+  show('quiz'); renderQuiz();
+}
+
+/* ── QUIZ ── */
+function renderQuiz(){
+  updateHeader();
+  if(current>=Qs.length){ finishQuiz(); return; }
+  const q=Qs[current];
+  const answered=userAnswers[current]!==null;
+  const labels=['A','B','C','D'];
+  const correctSoFar=userAnswers.filter((a,i)=>a===Qs[i].answer).length;
+  const answeredSoFar=userAnswers.filter(a=>a!==null).length;
+
+  const opts=q.options.map((opt,i)=>{
+    let cls='opt';
+    if(answered){
+      if(i===q.answer) cls+=' correct';
+      else if(i===userAnswers[current]&&i!==q.answer) cls+=' wrong';
+    }
+    return `<button class="${cls}" onclick="choose(${i})" ${answered?'disabled':''}><span class="opt-key">${labels[i]}.</span>${opt}</button>`;
+  }).join('');
+
+  document.getElementById('quiz-area').innerHTML=`
+    <div class="q-card anim">
+      <span class="badge badge-${q.badge}">${q.badge==='pdf'?'material de cátedra':'alta dificultad'}</span>
+      <p class="q-text">${q.text}</p>
+      <div class="options">${opts}</div>
+      <div class="explanation ${answered?'show':''}">${q.exp}</div>
+    </div>
+    <div class="nav">
+      <button class="btn" onclick="go(-1)" ${current===0?'disabled':''}>← Anterior</button>
+      <div class="nav-score">puntaje <b>${correctSoFar}</b> / ${answeredSoFar}</div>
+      <button class="btn btn-primary" onclick="go(1)">${current===Qs.length-1?'Ver resultado →':'Siguiente →'}</button>
+    </div>`;
+}
+
+function choose(idx){
+  if(userAnswers[current]!==null) return;
+  userAnswers[current]=idx; renderQuiz();
+}
+function go(dir){ current=Math.max(0,Math.min(Qs.length,current+dir)); renderQuiz(); }
+
+async function finishQuiz(){
+  const correct=userAnswers.filter((a,i)=>a===Qs[i].answer).length;
+  await saveScore(playerName,correct,Qs.length);
+  show('result'); renderResult(correct);
+}
+
+/* ── RESULT ── */
+async function renderResult(correct){
+  const total=Qs.length, pct=Math.round(correct/total*100);
+  const wrong=userAnswers.filter((a,i)=>a!==null&&a!==Qs[i].answer).length;
+  const msgs=[[90,'¡Excelente! Dominás el tema.'],[70,'Muy bien, algunos conceptos para repasar.'],[50,'Aprobado, pero repasá antes del parcial.'],[0,'A revisar el material con atención.']];
+  const msg=msgs.find(([m])=>pct>=m)[1];
+  const pctColor=pct>=70?'var(--accent2)':pct>=50?'var(--gold)':'var(--warn)';
+
+  document.getElementById('result-area').innerHTML=`
+    <div class="result-card anim">
+      <div class="result-name">${playerName}</div>
+      <div class="result-pct" style="color:${pctColor}">${pct}%</div>
+      <div class="result-msg">${msg}</div>
+      <div class="result-breakdown">
+        <div class="rb-item"><div class="rb-num" style="color:var(--accent2)">${correct}</div><div class="rb-lbl">correctas</div></div>
+        <div class="rb-item"><div class="rb-num" style="color:var(--muted)">${total}</div><div class="rb-lbl">total</div></div>
+        <div class="rb-item"><div class="rb-num" style="color:var(--warn)">${wrong}</div><div class="rb-lbl">incorrectas</div></div>
+      </div>
+    </div>
+    <div class="lb-card anim">
+      <div class="lb-title">🏆 tabla de posiciones</div>
+      <div id="lb-inner"><div class="lb-loading">cargando tabla...</div></div>
+    </div>
+    <div class="bottom-nav">
+      <button class="btn" onclick="restart()">Volver a jugar</button>
+      <button class="btn btn-primary" onclick="refreshLB()">Actualizar tabla ↻</button>
+    </div>`;
+
+  await refreshLB();
+}
+
+async function refreshLB(){
+  const el=document.getElementById('lb-inner');
+  if(!el) return;
+  el.innerHTML='<div class="lb-loading">actualizando...</div>';
+  const scores=await loadScores();
+  scores.sort((a,b)=>b.pct-a.pct||a.ts-b.ts);
+  if(scores.length===0){ el.innerHTML='<div class="lb-empty">Nadie jugó todavía. ¡Sé el primero!</div>'; return; }
+
+  const medals=['gold','silver','bronze'];
+  const top3=scores.slice(0,3);
+  // visual order: 2nd | 1st | 3rd
+  const visualOrder=[
+    top3[1]?{entry:top3[1],medal:'silver',label:'2°'}:null,
+    top3[0]?{entry:top3[0],medal:'gold',  label:'1°'}:null,
+    top3[2]?{entry:top3[2],medal:'bronze',label:'3°'}:null
+  ].filter(Boolean);
+
+  let podHTML='<div class="podium">';
+  visualOrder.forEach(({entry,medal,label})=>{
+    const init=entry.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    podHTML+=`
+      <div class="pod-slot">
+        <div class="pod-avatar ${medal}">${init}</div>
+        <div class="pod-name">${entry.name}</div>
+        <div class="pod-score">${entry.correct}/${entry.total} · ${entry.pct}%</div>
+        <div class="pod-column ${medal}"><div class="pod-rank ${medal}">${label}</div></div>
+      </div>`;
+  });
+  podHTML+='</div>';
+
+  let tHTML=`<table class="lb-table"><thead><tr><th>#</th><th>nombre</th><th>correctas</th><th>puntaje</th></tr></thead><tbody>`;
+  scores.forEach((s,i)=>{
+    const isMe=s.name.toLowerCase()===playerName.toLowerCase();
+    const rBadge=i<3?`<span class="rank-badge r${i+1}">${i+1}</span>`:`<span class="rn">${i+1}</span>`;
+    tHTML+=`<tr class="${isMe?'me':''}">
+      <td>${rBadge}</td>
+      <td>${s.name}${isMe?'<span class="me-tag">← vos</span>':''}</td>
+      <td style="font-family:var(--mono)">${s.correct}/${s.total}</td>
+      <td>${s.pct}%</td>
+    </tr>`;
+  });
+  tHTML+='</tbody></table>';
+  el.innerHTML=podHTML+tHTML;
+}
+
+function restart(){
+  current=0; userAnswers=new Array(Qs.length).fill(null);
+  playerName=''; nameInput.value=''; btnStart.disabled=true;
+  document.getElementById('progress').style.width='0%';
+  document.getElementById('counter').textContent='inicio';
+  show('intro');
+}
+
+function show(name){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById('screen-'+name).classList.add('active'); }
+function updateHeader(){
+  document.getElementById('progress').style.width=(current/Qs.length*100).toFixed(1)+'%';
+  document.getElementById('counter').innerHTML=current<Qs.length?`pregunta <b>${current+1}</b> / ${Qs.length}`:'resultado final';
+}
+</script>
+</body>
+</html>
